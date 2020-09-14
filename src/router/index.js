@@ -1,7 +1,7 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-
-import ModelView from '../components/DemoModelView.vue'
+import ModelView from '../components/DemoModel.vue'
+import ModelDetail from '../components/DemoModelDetail.vue'
 
 
 Vue.use(VueRouter)
@@ -9,6 +9,7 @@ Vue.use(VueRouter)
 const routes = [
     {path: '/', redirect: '/model/view'},
     {path: '/model/view', component: ModelView},
+    {path: '/model/detail', component: ModelDetail},
 
 ]
 
