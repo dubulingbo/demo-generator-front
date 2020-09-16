@@ -110,7 +110,8 @@ export default {
         // 点击了配置按钮
         configBtnClick(row) {
             console.log(row);
-            this.$router.push("/model/detail");
+
+            this.$router.push({path: '/model/detail', query: {modelInfoId: row.id}});
         },
 
         // 点击了修改按钮
@@ -310,6 +311,7 @@ export default {
 
 
         },
+
         cancelForm() {
             this.loading = false;
             this.dialog = false;
