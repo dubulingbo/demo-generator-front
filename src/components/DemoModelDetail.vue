@@ -166,6 +166,7 @@
             </el-header>
 
             <el-main>
+                <el-button type="text" @click="downloadCode" class="model_download_btn">下载源码</el-button>
                 <el-table :data="modelDetailData" style="width: 100%" size="mini" border>
                     <el-table-column prop="propertyName" label="属性名" width="180" align="center" :resizable="false"/>
                     <el-table-column prop="proType" label="属性类型" width="120" align="center"/>
@@ -190,6 +191,115 @@
 export default {
 
     methods: {
+        // 点击下载源码的按钮
+        downloadCode(){
+            if(this.modelInfoId === null || this.modelInfoId === ''){
+                this.$message.warning("模型为空，请刷新后重试");
+                return;
+            }
+            // 请求后端
+            /** 第二种方法，浏览器中不会出现新建标签页，但是需要手动获取下载的文件名 */
+            const config = {
+                params: {
+                    "modelIds": [this.modelInfoId,],
+                },
+                paramsSerializer: function(params) {
+                    return params.modelIds.map(_ => `modelIds=${_}`).join('&');
+                },
+                responseType:'blob',
+            }
+            this.$axios.get('/api/file/download/code', config).then(resp => {
+                    console.log(resp)
+
+                    let contentDisposition = resp.headers['Content-Disposition'];
+                    console.log(contentDisposition)
+                    let fileName = "源码.zip"
+                    if (contentDisposition) {
+                        console.log(contentDisposition);
+                        fileName = window.decodeURI(resp.headers['Content-Disposition'].split('=')[1]);
+
+                        console.log('获取到的文件名 = ' + fileName)
+                    }
+
+                    let blob = new Blob([resp.data], {type: 'application/octet-stream'});
+                    if (window.navigator.msSaveOrOpenBlob) { //支持IE
+                        navigator.msSaveBlob(blob, fileName);
+                    } else {
+                        let link = document.createElement('a');
+                        link.style.display = "none";
+                        link.href = window.URL.createObjectURL(blob);
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        //释放内存
+                        window.URL.revokeObjectURL(link.href);
+                        document.body.removeChild(link);
+                    }
+                }).catch(error => {
+                console.log(error.message);
+                this.$message.error("服务器错误：" + error.message);
+            })
+
+
+
+
+
+
+
+            // this.$axios({
+            //     method:'get',
+            //     url: '/api/file/download/code',
+            //     responseType: 'blob', //接收类型设置，否则返回字符型
+            //     params: {
+            //         "modelIds": [this.modelInfoId,],
+            //     },
+            //     paramsSerializer: function(params) {
+            //         return params.modelIds.map(_ => `modelIds=${_}`).join('&');
+            //     },
+            //     timeout: 3000,
+            // }).then((res)=>{
+            //     let data=res.data;
+            //     if (!data){
+            //         this.$message.error("文件下载失败");
+            //         return;
+            //     }
+            //     const blob=new Blob([data]);
+            //     if (window.navigator.msSaveOrOpenBlob){ // 兼容IE10
+            //         navigator.msSaveBlob(blob);
+            //     }else { // 其他非IE内核支持H5的浏览器
+            //         let url = window.URL.createObjectURL(blob);
+            //         let link = document.createElement('a');
+            //         link.style.display = 'none';
+            //         link.href = url;
+            //         // link.setAttribute('download', filename);
+            //         document.body.appendChild(link);
+            //         link.click();
+            //     }
+            //
+            // }).catch(error => {
+            //     console.log(error.message);
+            //     this.$message.error("服务器错误：" + error.message);
+            // })
+
+            // this.$axios.get("/api/file/download/code",{
+            //     params:{
+            //         "modelIds": [this.modelInfoId,],
+            //     },
+            //     paramsSerializer: function(params) {
+            //         return params.modelIds.map(_ => `modelIds=${_}`).join('&');
+            //     },
+            //     timeout: 3000,
+            // }).then(response => {
+            //     console.log(response);
+            //     if(response.status === 200){
+            //         this.$message.success("正在下载源码文件 ...");
+            //     }
+            // }).catch(error => {
+            //     console.log(error.message);
+            //     this.$message.error("服务器错误：" + error.message);
+            // })
+        },
+
         // 加载属性类型数据
         loadProTypeList() {
             console.log(this.proTypeList);
