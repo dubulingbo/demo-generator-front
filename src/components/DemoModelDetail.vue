@@ -2,38 +2,39 @@
     <div class="demo_model_detail">
         <el-container>
             <el-page-header @back="" content="模型明细信息面板"></el-page-header>
+
             <el-header>
                 <el-row>
                     <el-col :span="8">
                         <el-card shadow="never" class="box-card el_card_left">
                             <div slot="header" class="clearfix">
-                                <span style="color: #409EFF;">模型摘要信息</span>
+                                <span style="font-size: 20px;">模型摘要信息</span>
                             </div>
-                            <div class="mode_info_item">
+                            <div class="mode_info_panel">
                                 <div>
                                     <label>模型名</label>
                                 </div>
                                 {{ modelInfo.modelName }}
                             </div>
-                            <div class="mode_info_item">
+                            <div class="mode_info_panel">
                                 <div>
                                     <label class="clearfix">包 名</label>
                                 </div>
                                 {{ modelInfo.packageDir }}
                             </div>
-                            <div class="mode_info_item">
+                            <div class="mode_info_panel">
                                 <div>
                                     <label>表 名</label>
                                 </div>
                                 {{ modelInfo.tableName }}
                             </div>
-                            <div class="mode_info_item">
+                            <div class="mode_info_panel">
                                 <div>
                                     <label>创建人</label>
                                 </div>
                                 {{ modelInfo.createUser }}
                             </div>
-                            <div class="mode_info_item">
+                            <div class="mode_info_panel">
                                 <div>
                                     <label>创建时间</label>
                                 </div>
@@ -166,7 +167,6 @@
             </el-header>
 
             <el-main>
-                <el-button type="text" @click="downloadCode" class="model_download_btn">下载源码</el-button>
                 <el-table :data="modelDetailData" style="width: 100%" size="mini" border>
                     <el-table-column prop="propertyName" label="属性名" width="180" align="center" :resizable="false"/>
                     <el-table-column prop="proType" label="属性类型" width="120" align="center"/>
@@ -182,153 +182,131 @@
                         </template>
                     </el-table-column>
                 </el-table>
+                <div class="raw_code_panel">
+                    <el-button-group class="model_download_btn">
+                        <el-button icon="el-icon-refresh" @click="loadCode">加载/刷新</el-button>
+                        <el-button icon="el-icon-download" @click="downloadCode">下载源码</el-button>
+                    </el-button-group>
+                    <el-tabs tab-position="right">
+                        <el-tab-pane label="表结构"><pre>{{ demo.tableStructure }}</pre></el-tab-pane>
+                        <el-tab-pane label="实体类"><pre>{{ demo.entity }}</pre></el-tab-pane>
+                        <el-tab-pane label="Mapper Interface层"><pre>{{ demo.mapperInter }}</pre></el-tab-pane>
+                        <el-tab-pane label="Mapper Xml层"><pre>{{ demo.mapperXml }}</pre></el-tab-pane>
+                        <el-tab-pane label="Service层"><pre>{{ demo.service }}</pre></el-tab-pane>
+                        <el-tab-pane label="Controller层"><pre>{{ demo.controller }}</pre></el-tab-pane>
+                    </el-tabs>
+                </div>
             </el-main>
         </el-container>
     </div>
 </template>
 
+
 <script>
 export default {
-
     methods: {
-        // 点击下载源码的按钮
-        downloadCode(){
+        // 加载代码
+        loadCode(){
             if(this.modelInfoId === null || this.modelInfoId === ''){
                 this.$message.warning("模型为空，请刷新后重试");
                 return;
             }
-            // 请求后端
-            /** 第二种方法，浏览器中不会出现新建标签页，但是需要手动获取下载的文件名 */
+            this.$axios.get("/api/code/load/" + this.modelInfoId, {timeout: 3000,}).then(response => {
+                if (response.status === 200 && response.data.code === '200' && response.data.data !== null
+                    && response.data.data.optCode === '1') {
+                    console.log(response.data.data);
+                    this.demo.tableStructure = response.data.data.tableStructureDemo;
+                    this.demo.entity =  response.data.data.entityDemo;
+                    this.demo.mapperInter = response.data.data.mapperInterfaceDemo;
+                    this.demo.mapperXml = response.data.data.mapperXmlDemo;
+                    this.demo.service = response.data.data.serviceDemo;
+                    this.demo.controller = response.data.data.controllerDemo;
+                } else {
+                    this.$message.error("The data of list load failed!");
+                }
+            }).catch(error => {
+                this.$message.error("Server error：" + error.message);
+            });
+        },
+
+        // 点击下载源码的按钮
+        downloadCode() {
+            if (this.modelInfoId === null || this.modelInfoId === '') {
+                this.$message.warning("模型为空，请刷新后重试");
+                return;
+            }
+
+            // 请求后端，第二种方法：浏览器中不会出现新建标签页，但是需要手动获取下载的文件名
             const config = {
                 params: {
                     "modelIds": [this.modelInfoId,],
                 },
-                paramsSerializer: function(params) {
+                paramsSerializer: function (params) {
                     return params.modelIds.map(_ => `modelIds=${_}`).join('&');
                 },
-                responseType:'blob',
+                responseType: 'blob',
             }
-            this.$axios.get('/api/file/download/code', config).then(resp => {
-                    console.log(resp)
+            this.$axios.get('/api/code/download', config).then(resp => {
+                console.log(resp)
+                // 如果未获取到文件名，则使用指定的文件全名
+                let contentDisposition = resp.headers['content-disposition'];
+                let fileName = "源码.zip";
+                if (contentDisposition) {
+                    console.log(contentDisposition);
+                    fileName = window.decodeURI(contentDisposition.split('=')[1]);
+                    console.log('获取到的文件名 = ' + fileName)
+                }
 
-                    let contentDisposition = resp.headers['Content-Disposition'];
-                    console.log(contentDisposition)
-                    let fileName = "源码.zip"
-                    if (contentDisposition) {
-                        console.log(contentDisposition);
-                        fileName = window.decodeURI(resp.headers['Content-Disposition'].split('=')[1]);
-
-                        console.log('获取到的文件名 = ' + fileName)
-                    }
-
-                    let blob = new Blob([resp.data], {type: 'application/octet-stream'});
-                    if (window.navigator.msSaveOrOpenBlob) { //支持IE
-                        navigator.msSaveBlob(blob, fileName);
-                    } else {
-                        let link = document.createElement('a');
-                        link.style.display = "none";
-                        link.href = window.URL.createObjectURL(blob);
-                        link.download = fileName;
-                        document.body.appendChild(link);
-                        link.click();
-                        //释放内存
-                        window.URL.revokeObjectURL(link.href);
-                        document.body.removeChild(link);
-                    }
-                }).catch(error => {
+                // 获取文件里的内容
+                let content = new Blob([resp.data], {type: 'application/octet-stream'});
+                if (window.navigator.msSaveOrOpenBlob) { //支持IE
+                    navigator.msSaveBlob(content, fileName);
+                } else {
+                    let link = document.createElement('a');
+                    link.style.display = "none";
+                    link.href = window.URL.createObjectURL(content);
+                    link.download = fileName;
+                    document.body.appendChild(link);
+                    link.click();
+                    //释放内存
+                    window.URL.revokeObjectURL(link.href);
+                    document.body.removeChild(link);
+                }
+            }).catch(error => {
                 console.log(error.message);
-                this.$message.error("服务器错误：" + error.message);
-            })
-
-
-
-
-
-
-
-            // this.$axios({
-            //     method:'get',
-            //     url: '/api/file/download/code',
-            //     responseType: 'blob', //接收类型设置，否则返回字符型
-            //     params: {
-            //         "modelIds": [this.modelInfoId,],
-            //     },
-            //     paramsSerializer: function(params) {
-            //         return params.modelIds.map(_ => `modelIds=${_}`).join('&');
-            //     },
-            //     timeout: 3000,
-            // }).then((res)=>{
-            //     let data=res.data;
-            //     if (!data){
-            //         this.$message.error("文件下载失败");
-            //         return;
-            //     }
-            //     const blob=new Blob([data]);
-            //     if (window.navigator.msSaveOrOpenBlob){ // 兼容IE10
-            //         navigator.msSaveBlob(blob);
-            //     }else { // 其他非IE内核支持H5的浏览器
-            //         let url = window.URL.createObjectURL(blob);
-            //         let link = document.createElement('a');
-            //         link.style.display = 'none';
-            //         link.href = url;
-            //         // link.setAttribute('download', filename);
-            //         document.body.appendChild(link);
-            //         link.click();
-            //     }
-            //
-            // }).catch(error => {
-            //     console.log(error.message);
-            //     this.$message.error("服务器错误：" + error.message);
-            // })
-
-            // this.$axios.get("/api/file/download/code",{
-            //     params:{
-            //         "modelIds": [this.modelInfoId,],
-            //     },
-            //     paramsSerializer: function(params) {
-            //         return params.modelIds.map(_ => `modelIds=${_}`).join('&');
-            //     },
-            //     timeout: 3000,
-            // }).then(response => {
-            //     console.log(response);
-            //     if(response.status === 200){
-            //         this.$message.success("正在下载源码文件 ...");
-            //     }
-            // }).catch(error => {
-            //     console.log(error.message);
-            //     this.$message.error("服务器错误：" + error.message);
-            // })
+                this.$message.error("Server error: " + error.message);
+            });
         },
 
         // 加载属性类型数据
         loadProTypeList() {
-            console.log(this.proTypeList);
             // 没有值时才去后端加载
             if (this.proTypeList === null || this.proTypeList.length === 0) {
                 // 请求后端
-                this.$axios.get("/api/demo/property/type/s", {timeout: 1000,}).then(response => {
+                this.$axios.get("/api/basic/property/type/s", {timeout: 1000,}).then(response => {
                     if (response.status === 200 && response.data.code === '200' && response.data.data !== null
                         && response.data.data.optCode === '1') {
                         console.log(response.data.data);
                         if (response.data.data.propertyTypeList !== null) {
                             this.proTypeList = response.data.data.propertyTypeList;
                         } else {
-                            this.$message.warning("列表数据为空");
+                            console.log("The data of list is empty!");
                         }
                     } else {
-                        this.$message.error("列表数据加载失败");
+                        this.$message.error("The data of list load failed!");
                     }
                 }).catch(error => {
-                    this.$message.error("服务器错误：" + error.message);
+                    this.$message.error("Server error：" + error.message);
                 });
+            } else {
+                console.log("Start load local property type data!");
             }
         },
 
         // 加载字段类型数据
         loadColTypeList() {
-            console.log("========= start load column type data !");
             if (this.colTypeList === null || this.colTypeList.length === 0) {
-                this.$axios.get("/api/demo/property/type/colTypes", {timeout: 1000,}).then(response => {
+                this.$axios.get("/api/basic/property/type/colTypes", {timeout: 1000,}).then(response => {
                     if (response.status === 200 && response.data.code === '200' && response.data.data !== null
                         && response.data.data.optCode === '1') {
                         console.log(response.data.data);
@@ -344,12 +322,14 @@ export default {
                 }).catch(error => {
                     this.$message.error("服务器错误：" + error.message);
                 });
+            } else {
+                console.log("========= start load local column type data !");
             }
         },
 
         // 加载模型明细列表数据
         async loadModelDetailList() {
-            await this.$axios.get("/api/demo/model/detail/list", {
+            await this.$axios.get("/api/basic/model/detail/list", {
                 params: {
                     modelId: this.modelInfoId,
                 },
@@ -384,7 +364,7 @@ export default {
         },
 
         // 点击了修改按钮
-        async editBtnClick(row,formName) {
+        async editBtnClick(row, formName) {
             // const {data: res} = await this.$axios.get("/api/demo/model");
             if (row === null) { // 前端数据丢失
                 this.$notify({
@@ -405,20 +385,6 @@ export default {
             this.modelDetailForm.columnTypeId = row.columnTypeId;
             this.modelDetailForm.columnLength = row.columnLength;
             console.log(this.modelDetailForm);
-            // this.dialogFormVisible
-            /*await this.$axios.get("/api/demo/model/" + row.id).then(response => {
-                console.log(response);
-                if (response.status === 200 && response.data.code === '200' && response.data.data !== null) {
-                    if (response.data.data.optCode === '1') {
-
-                        // this.dialog = true;
-                    }
-                } else {
-                    this.$message.error("请求失败");
-                }
-            }).catch(error => {
-                this.$message.error("服务器错误：" + error.message);
-            });*/
 
         },
 
@@ -431,7 +397,7 @@ export default {
                 if (valid) {
                     this.loading = true;
                     // 请求后端
-                    this.$axios.put('/api/demo/model/detail/' + this.modelDetailForm.id, {}, {
+                    this.$axios.put('/api/basic/model/detail/' + this.modelDetailForm.id, {}, {
                         params: {
                             propertyName: this.modelDetailForm.propertyName,
                             propertyTypeId: this.modelDetailForm.propertyTypeId,
@@ -449,7 +415,7 @@ export default {
                                 // 刷新列表
                                 this.loadModelDetailList();
                                 this.resetModelDetailForm(formName);
-                            }else{
+                            } else {
                                 this.$message.error(response.data.data.message);
                             }
                         } else {
@@ -470,7 +436,7 @@ export default {
 
         },
         // 取消编辑
-        cancelEdit(formName){
+        cancelEdit(formName) {
             this.resetModelDetailForm(formName);
             this.isAdd = true;
         },
@@ -484,7 +450,7 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$axios.delete("/api/demo/model/detail/" + row.id, {timeout: 1000,}).then(response => {
+                this.$axios.delete("/api/basic/model/detail/" + row.id, {timeout: 1000,}).then(response => {
                     console.log(response);
                     if (response.status === 200 && response.data.code === '200' && response.data.data !== null) {
                         console.log(response.data.data);
@@ -497,7 +463,7 @@ export default {
                                 type: 'success',
                                 offset: 100
                             });
-                        }else {
+                        } else {
                             this.$message.error(response.data.data.message);
                         }
                     } else {
@@ -530,18 +496,14 @@ export default {
                     this.loading = true;
                     // 请求后端
                     console.log(this.modelDetailForm);
-                    this.$axios.post('/api/demo/model/detail', this.modelDetailForm, {timeout: 1000,}).then(response => {
+                    this.$axios.post('/api/basic/model/detail', this.modelDetailForm, {timeout: 1000,}).then(response => {
                         if (response.status === 200 && response.data.code === '200' && response.data.data !== null) {
                             console.log(response.data.data);
                             if (response.data.data.optCode === '1' && response.data.data.modelDetail !== null) {
-                                this.$notify({
-                                    title: '成功',
-                                    message: '已成功添加',
-                                    type: 'success',
-                                    offset: 100
-                                });
                                 // 刷新列表
                                 this.loadModelDetailList();
+                                // 重置输入框
+                                this.resetModelDetailForm(formName);
                             } else {
                                 this.$message.error(response.data.data.message);
                             }
@@ -574,7 +536,7 @@ export default {
             this.$router.go(-1);
         }
         console.log("===========" + this.modelInfoId);
-        this.$axios.get("/api/demo/model/" + this.modelInfoId, {timeout: 1000,}).then(response => {
+        this.$axios.get("/api/basic/model/" + this.modelInfoId, {timeout: 1000,}).then(response => {
             if (response.status === 200 && response.data.code === '200' && response.data.data !== null
                 && response.data.data.optCode === '1') {
                 console.log(response.data.data);
@@ -589,15 +551,14 @@ export default {
         }).catch(error => {
             this.$message.error("服务器错误：" + error.message);
         });
-        if(this.modelInfo !== null){
+        if (this.modelInfo !== null) {
             this.loadModelDetailList();
             this.loadProTypeList();
             this.loadColTypeList();
-        }else{
+        } else {
             this.$message.error("服务器错误，请重试");
         }
     },
-
     data() {
         const isNum = (rule, value, callback) => {
             if (value === null || value === '') {
@@ -616,6 +577,9 @@ export default {
             }, 1000);
         };
         return {
+            loading: false,
+            proTypeList: [],
+            colTypeList: [],
             modelDetailData: [],
             modelInfo: {},
             modelInfoId: '',
@@ -632,19 +596,6 @@ export default {
                 columnTypeId: '',
                 columnLength: '',
             },
-            // 修改和添加共用的表单数据
-            modelDetailForm1: {
-                id: '',
-                modelId: '',
-                propertyName: '',
-                propertyTypeId: '',
-                remark: '',
-                columnName: '',
-                columnTypeId: '',
-                columnLength: '',
-            },
-
-
             modelDetailFormRules: {
                 propertyName: [
                     {required: true, message: '请输入属性名（符合驼峰命名）', trigger: 'blur'},
@@ -666,32 +617,43 @@ export default {
                 ],
             },
 
-            typeSelectLoading: false,
-            proTypeList: [],
-            colTypeList: [],
-            dialog: false,
-            loading: false,
-            dialogFormVisible: false,
+            // 代码面板的数据
+            demo: {
+                tableStructure: '',
+                entity: '',
+                mapperInter: '',
+                mapperXml: '',
+                service: '',
+                controller: '',
+            },
         };
     },
 }
 </script>
+
 
 <style lang="less" scoped>
 .demo_model {
     overflow-y: hidden;
 }
 
-/******************容器布局样式**********************/
+/** 页面头部样式 **/
+.el-page-header {
+    line-height: 40px;
+    background-color: #8CC5FF;
+}
+/***********************************************/
+
+/** 容器布局样式 **/
 .el-container {
-    width: 90%;
+    width: 80%;
     height: 100%;
     margin: 0 auto;
 }
 
 .el-header {
     padding: 0;
-    font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, SimSun, sans-serif;;
+    font-family: Helvetica Neue, Helvetica, PingFang SC, Hiragino Sans GB, Microsoft YaHei, SimSun, sans-serif;
     font-weight: 400;
     //height: 200px;
     flex: 1;
@@ -702,71 +664,25 @@ export default {
     padding: 2px;
     padding-bottom: 20px;
 }
+/***********************************************/
 
-/****************************************/
-
-/*** 抽屉式弹框样式 ***/
-.demo_model_detail /deep/ .el-drawer__body {
-    padding: 10px;
-    flex: 1;
-    display: block;
-
-
-}
-
-.demo-drawer__content {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-
-    .el-form {
-        flex: 1;
-    }
-}
-
-.demo-drawer__footer {
-    display: flex;
-
-    .el-button {
-        flex: 1;
-    }
-}
-
-.model_drawer_sortInput {
-    width: 200px;
-}
-
-/**********************************************************/
-
-/*** 列表样式 ***/
+/** 列表样式 **/
 .el-table {
     background: oldlace;
     font-size: 16px;
 }
+/***********************************************/
 
-.el-row {
-    //margin-bottom: 15px;
+/** 卡片区样式 **/
+.el-card {
+    border: none;
 }
 
-/**********************************************************/
-
-.model_detail_collapse {
-
-    margin-bottom: 24px;
-    border: 1px solid #ebebeb;
-    border-radius: 3px;
-    transition: .2s;
-    padding: 24px;
+// 模型信息显示面板样式
+.el_card_left {
+    padding-right: 10px;
 }
-
-.el-collapse {
-    border-top: 1px solid #ebeef5;
-    border-bottom: 1px solid #ebeef5;
-}
-
-
-/****************************/
-.mode_info_item {
+.mode_info_panel {
     font-size: 16px;
     margin-bottom: 20px;
 
@@ -782,31 +698,36 @@ export default {
         }
     }
 }
-
-/****************************/
-.el-page-header {
-    line-height: 40px;
-    background-color: #8CC5FF;
-}
-
-.el-card {
-    border: none;
-}
-
+// 添加或修改模型属性 的面板样式
 .el_card_right {
     margin-left: 10px;
     border-left: 1px solid #C6E2FF;
 }
-
-.el_card_left {
-    padding-right: 10px;
-}
-
-/**********************************/
 .form_title {
-    font-size: large;
-    margin-bottom: 10px;
+    font-size: 20px;
+    margin-bottom: 20px;
 }
+/***********************************************/
 
+/** 源代码面板区样式 **/
+.raw_code_panel {
+    margin-top: 20px;
+    background: ghostwhite;
 
+    .model_download_btn {
+        margin-left: 20px;
+        margin-bottom: 0;
+    }
+
+    .el-tabs {
+        min-height: 200px;
+        padding: 10px;
+        border-top: 1px solid #EBEEF5;
+    }
+
+    .el-tabs /deep/ .el-tab-pane {
+        font-size: 16px;
+    }
+}
+/***********************************************/
 </style>

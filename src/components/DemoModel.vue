@@ -19,11 +19,11 @@
                 <el-table :data="modelData" style="width: 100%" class="model_list_table" size="mini">
                     <el-table-column prop="index" label="序号" width="60"></el-table-column>
                     <el-table-column prop="name" label="模型名"></el-table-column>
-                    <el-table-column prop="remark" label="描述" width="180"></el-table-column>
-                    <el-table-column prop="tableName" label="对应表名"></el-table-column>
+                    <el-table-column prop="remark" label="描述"></el-table-column>
+                    <el-table-column prop="tableName" label="对应表名" width="200"></el-table-column>
                     <el-table-column prop="createTime" label="创建时间" width="180"></el-table-column>
                     <el-table-column prop="createUser" label="创建人" width="120"></el-table-column>
-                    <el-table-column label="操作" width="180">
+                    <el-table-column label="操作" width="160">
                         <template slot-scope="scope">
                             <el-button @click="configBtnClick(scope.row)" type="text" size="small">配置</el-button>
                             <el-button @click="editBtnClick(scope.row)" type="text" size="small">修改</el-button>
@@ -73,7 +73,7 @@
             <div slot="footer" class="dialog-footer">
                 <el-button @click="cancelForm">取 消</el-button>
                 <el-button type="primary" @click="submitModel('modelForm')" :loading="loading">
-                    {{ loading ? '提交中 ...' : '添 加' }}
+                    {{ loading ? '正在添加 ...' : '添 加' }}
                 </el-button>
             </div>
         </el-dialog>
@@ -85,7 +85,7 @@ export default {
     methods: {
         // 加载模型列表数据
         async loadModelList() {
-            await this.$axios.get("/api/demo/model/s", {
+            await this.$axios.get("/api/basic/model/s", {
                 timeout: 1000,
             }).then(response => {
                 if (response.status === 200 && response.data.code === '200' && response.data.data !== null
@@ -110,7 +110,6 @@ export default {
         // 点击了配置按钮
         configBtnClick(row) {
             console.log(row);
-
             this.$router.push({path: '/model/detail', query: {modelInfoId: row.id}});
         },
 
@@ -119,7 +118,7 @@ export default {
             console.log(row);
             // const {data: res} = await this.$axios.get("/api/demo/model");
             if (row.id.trim() !== null && row.id.trim() !== '') {
-                await this.$axios.get("/api/demo/model/" + row.id).then(response => {
+                await this.$axios.get("/api/basic/model/" + row.id).then(response => {
                     console.log(response);
                     if (response.status === 200 && response.data.code === '200' && response.data.data !== null) {
                         if (response.data.data.optCode === '1') {
@@ -147,7 +146,7 @@ export default {
                 cancelButtonText: '取消',
                 type: 'warning'
             }).then(() => {
-                this.$axios.delete("/api/demo/model/" + row.id, {timeout: 1000,}).then(response => {
+                this.$axios.delete("/api/basic/model/" + row.id, {timeout: 1000,}).then(response => {
                     console.log(response);
                     if (response.status === 200 && response.data.code === '200' && response.data.data !== null) {
                         console.log(response.data.data);
@@ -184,7 +183,7 @@ export default {
                 if (valid) {
                     this.loading = true;
                     // 请求后端
-                    this.$axios.post('/api/demo/model/', {
+                    this.$axios.post('/api/basic/model/', {
                         name: this.modelForm.name,
                         remark: this.modelForm.remark,
                         sortNo: this.modelForm.sortNo,
@@ -230,7 +229,7 @@ export default {
             let modelName = this.searchInput.trim();
 
             console.log("即将请求后台数据..." + modelName);
-            await this.$axios.get("/api/demo/model/s", {
+            await this.$axios.get("/api/basic/model/s", {
                 params: {
                     modelName: this.searchInput,
                 },
@@ -263,7 +262,7 @@ export default {
                     this.$confirm('确定要提交表单吗？').then(_ => {
                         this.loading = true;
                         // 请求后端
-                        this.$axios.put('/api/demo/model/' + this.modelForm.id, {}, {
+                        this.$axios.put('/api/basic/model/' + this.modelForm.id, {}, {
                             params: {
                                 name: this.modelForm.name,
                                 remark: this.modelForm.remark,
