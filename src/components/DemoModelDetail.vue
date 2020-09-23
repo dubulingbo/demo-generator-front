@@ -203,6 +203,9 @@
 
 
 <script>
+import JSZip from "jszip";
+import {saveAs} from 'file-saver'
+
 export default {
     methods: {
         // 加载代码
@@ -230,7 +233,7 @@ export default {
         },
 
         // 点击下载源码的按钮
-        downloadCode() {
+        downloadCode01() {
             if (this.modelInfoId === null || this.modelInfoId === '') {
                 this.$message.warning("模型为空，请刷新后重试");
                 return;
@@ -277,6 +280,65 @@ export default {
                 this.$message.error("Server error: " + error.message);
             });
         },
+        // 下载代码区的源码
+        downloadCode(){
+            // 获取页面上的包路径
+            if( this.modelInfo === null){
+                this.$message.warning("页面信息缺失，请刷新");
+                return;
+            }
+            console.log(this.modelInfo);
+
+            if(this.demo.tableStructure === '' || this.demo.entity === ''
+                || this.demo.mapperInter === ''
+                || this.demo.mapperXml === '' || this.demo.service === ''){
+                this.$message.warning("请先加载源码后再下载");
+            }
+            // 前端显示开始下载，弹框显示loading
+            const loading = this.$loading({
+                lock: true,
+                text: '正在下载 ',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
+
+            setTimeout(() => {
+                // 创建压缩文件对象
+                let reg=new RegExp('[.]','g')//g代表全部
+                let path= this.modelInfo.modelName +"_model/" + this.modelInfo.packageDir2.replace(reg,'/');
+                console.log(path);
+
+                let ziper = new JSZip();
+                ziper.folder(path);
+                ziper.folder(path + "/model").file(this.modelInfo.modelName + ".java", this.demo.entity);
+                ziper.folder(path + "/model").file( this.modelInfo.modelName + ".sql", this.demo.tableStructure);
+                ziper.folder(path + "/mapper").file(this.modelInfo.modelName + "Mapper.java", this.demo.mapperInter);
+                ziper.folder(path + "/mapper").file(this.modelInfo.modelName + "Mapper.xml", this.demo.mapperXml);
+                let service = this.modelInfo.modelName.substring(1,2).toUpperCase() + this.modelInfo.modelName.substring(2);
+                ziper.folder(path + "/service").file(service + "Service.java", this.demo.service);
+                ziper.folder(path + "/controller").file(service + "Controller.java", this.demo.controller);
+
+                ziper.generateAsync({type: 'blob'}).then(fruit => {
+                    saveAs(fruit, `源码.zip`);
+                }).catch(err => {
+                    this.$message.error(err.message);
+                }).finally(() =>{
+                    loading.close();
+                });
+            }, 1000);
+
+
+        },
+        // compressFiles(ziper,zipName) {
+        //
+        //     zip.file('ca.crt', '字符串内容')
+        //     zip.file(`${zipName}.txt`, 'this is a string!\n')
+        //     zip.file(`${zipName}.doc`, 'please test!')
+        //     zip.file('config.ovpn', 'hhhhhhhh')
+        //     zip.generateAsync({type: 'blob'}).then(fruit => {
+        //         saveAs(fruit, `${zipName}.zip`)
+        //     })
+        // },
 
         // 加载属性类型数据
         loadProTypeList() {
