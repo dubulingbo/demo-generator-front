@@ -3,3 +3,10 @@ html,body,#app{
     padding: 0;
     height: 100%;
 }
+pre {
+    tab-size:4;
+    -moz-tab-size:4;
+    -o-tab-size:4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
