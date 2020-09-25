@@ -86,7 +86,7 @@ export default {
         // 加载模型列表数据
         async loadModelList() {
             await this.$axios.get("/api/basic/model/s", {
-                timeout: 1000,
+                timeout: 3000,
             }).then(response => {
                 if (response.status === 200 && response.data.code === '200' && response.data.data !== null
                     && response.data.data.optCode === '1') {
@@ -97,7 +97,7 @@ export default {
                             this.modelData[i].index = i + 1;
                         }
                     } else {
-                        this.$message.warning("模型列表数据为空");
+                        this.$message.warning(response.data.data.message);
                     }
                 } else {
                     this.$message.error("模型列表数据加载失败");

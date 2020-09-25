@@ -185,7 +185,7 @@
                 <div class="raw_code_panel">
                     <el-button-group class="model_download_btn">
                         <el-button icon="el-icon-refresh" @click="loadCode">加载/刷新</el-button>
-                        <el-button icon="el-icon-download" @click="downloadCode">下载源码</el-button>
+                        <el-button icon="el-icon-download" @click="downloadCode01">下载源码</el-button>
                     </el-button-group>
                     <el-tabs tab-position="right">
                         <el-tab-pane label="表结构"><pre>{{ demo.tableStructure }}</pre></el-tab-pane>
@@ -215,17 +215,21 @@ export default {
                 return;
             }
             this.$axios.get("/api/code/load/" + this.modelInfoId, {timeout: 3000,}).then(response => {
-                if (response.status === 200 && response.data.code === '200' && response.data.data !== null
-                    && response.data.data.optCode === '1') {
-                    console.log(response.data.data);
-                    this.demo.tableStructure = response.data.data.tableStructureDemo;
-                    this.demo.entity =  response.data.data.entityDemo;
-                    this.demo.mapperInter = response.data.data.mapperInterfaceDemo;
-                    this.demo.mapperXml = response.data.data.mapperXmlDemo;
-                    this.demo.service = response.data.data.serviceDemo;
-                    this.demo.controller = response.data.data.controllerDemo;
+                console.log(response);
+                if (response.status === 200 && response.data.code === '200') {
+                    if(response.data.data !== null && response.data.data.optCode === '1') {
+                        console.log(response.data.data);
+                        this.demo.tableStructure = response.data.data.tableStructureDemo;
+                        this.demo.entity = response.data.data.entityDemo;
+                        this.demo.mapperInter = response.data.data.mapperInterfaceDemo;
+                        this.demo.mapperXml = response.data.data.mapperXmlDemo;
+                        this.demo.service = response.data.data.serviceDemo;
+                        this.demo.controller = response.data.data.controllerDemo;
+                    } else {
+                        this.$message.error("业务处理错误：" + response.data.data.message);
+                    }
                 } else {
-                    this.$message.error("The data of list load failed!");
+                    this.$message.error("通讯错误：" + response.data.msg);
                 }
             }).catch(error => {
                 this.$message.error("Server error：" + error.message);
@@ -239,17 +243,35 @@ export default {
                 return;
             }
 
+            if(this.demo.tableStructure === '' || this.demo.entity === ''
+                || this.demo.mapperInter === '' || this.demo.controller === ''
+                || this.demo.mapperXml === '' || this.demo.service === ''){
+                this.$message.warning("请先加载源码后再下载");
+            }
+
+
+            // 前端显示开始下载，弹框显示loading
+            const loading = this.$loading({
+                lock: true,
+                text: '正在下载 ',
+                spinner: 'el-icon-loading',
+                background: 'rgba(0, 0, 0, 0.7)'
+            });
             // 请求后端，第二种方法：浏览器中不会出现新建标签页，但是需要手动获取下载的文件名
             const config = {
-                params: {
-                    "modelIds": [this.modelInfoId,],
-                },
-                paramsSerializer: function (params) {
-                    return params.modelIds.map(_ => `modelIds=${_}`).join('&');
-                },
                 responseType: 'blob',
+                timeout: 3000,
+            };
+            let data = {
+                modelId: this.modelInfoId,
+                tableDemo: this.demo.tableStructure,
+                entityDemo: this.demo.entity,
+                mapperInterDemo: this.demo.mapperInter,
+                mapperXmlDemo: this.demo.mapperXml,
+                serviceDemo: this.demo.service,
+                controllerDemo: this.demo.controller,
             }
-            this.$axios.get('/api/code/download', config).then(resp => {
+            this.$axios.post('/api/code/download', data, config).then(resp => {
                 console.log(resp)
                 // 如果未获取到文件名，则使用指定的文件全名
                 let contentDisposition = resp.headers['content-disposition'];
@@ -278,6 +300,8 @@ export default {
             }).catch(error => {
                 console.log(error.message);
                 this.$message.error("Server error: " + error.message);
+            }).finally(() =>{
+                loading.close();
             });
         },
         // 下载代码区的源码
